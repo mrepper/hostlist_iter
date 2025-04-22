@@ -1,0 +1,38 @@
+//! A parser for hostlist expressions
+/*
+    Example inputs and their intended meaning:
+
+    "n1"                       -> n1
+    "n[1-3]"                   -> n1, n2, n3
+    "n[1-3,9,11-13]"           -> n1, n2, n3, n9, n11, n12, n13
+    "foo,a[1-2],b[1-2],n1,bar" -> foo, a1, a2, b1, b2, n1, bar
+    "a[1-2]b[3-4]"             -> a1b3, a2b3, a1b4, a2b4
+*/
+
+WHITESPACE = _{ " " | "\t" | NEWLINE }
+
+/// The primary rule for this grammar
+hostlist      = _{ SOI ~ hostlist_elem ~ ("," ~ hostlist_elem)* ~ EOI }
+hostlist_elem =  { static_elem ~ (range ~ static_elem?)* }
+// To disallow adjacent ranges:
+// hostlist_elem = { (static_elem ~ range?)+ }
+
+/// The non-range part of a hostlist (ex: "node" in "node[1-5]")
+static_elem = @{ static_char+ }
+static_char = _{ ASCII_ALPHANUMERIC | "_" | "-" | "." }
+
+/// The range part of a hostlist (ex: "[1-5]" in "node[1-5]")
+range        =  { "[" ~ range_elem ~ ("," ~ range_elem)* ~ "]" }
+range_elem   = _{ simple_range | number }
+simple_range =  { number ~ "-" ~ number }
+number       = @{ ASCII_DIGIT+ }
+
+/* Rules for turning list of hostnames into a hostlist */
+// https://pest.rs/book/grammars/syntax.html#predicates
+simple_hostname = _{ SOI ~ (prefix ~ numeric_suffix | numeric_suffix | prefix) ~ EOI }
+
+// Consume characters as long as they're not the start of the final suffix
+prefix = @{ (!numeric_suffix ~ static_char)* }
+
+// Must be at end of string
+numeric_suffix = @{ ASCII_DIGIT+ ~ !static_char }

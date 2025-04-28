@@ -1,3 +1,4 @@
+use core::fmt;
 use std::collections::HashMap;
 use std::iter::FusedIterator;
 use std::str::FromStr;
@@ -34,6 +35,19 @@ pub struct HostlistParser;
 #[derive(Debug, Clone, Ord, PartialOrd, Eq, PartialEq)]
 pub struct Hostlist {
     hostlist_elems: Vec<HostlistElem>,
+}
+
+impl fmt::Display for Hostlist {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        let joined = self
+            .hostlist_elems
+            .iter()
+            .map(std::string::ToString::to_string)
+            .collect::<Vec<_>>()
+            .join(",");
+
+        f.write_str(&joined)
+    }
 }
 
 impl Hostlist {

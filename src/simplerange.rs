@@ -1,3 +1,4 @@
+use core::fmt;
 use std::iter::FusedIterator;
 
 use crate::error::{Error, Result};
@@ -8,6 +9,16 @@ pub struct SimpleRange {
     pub start: u32,
     pub end: u32,
     current: Option<u32>,
+}
+
+impl fmt::Display for SimpleRange {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        if self.start == self.end {
+            write!(f, "{}", self.start)
+        } else {
+            write!(f, "{}-{}", self.start, self.end)
+        }
+    }
 }
 
 impl SimpleRange {

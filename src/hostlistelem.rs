@@ -1,5 +1,8 @@
+use core::fmt;
 use std::iter::FusedIterator;
 use std::num::ParseIntError;
+
+use derive_more::Display;
 
 use crate::Rule;
 use crate::error::{Error, Result};
@@ -7,13 +10,16 @@ use crate::range::Range;
 use crate::simplerange::SimpleRange;
 
 /// A component of a hostlist expression, `static_elem` or `range` from the pest grammar
-#[derive(Debug, Clone, Eq, PartialEq, Ord, PartialOrd)]
+#[derive(Debug, Display, Clone, Eq, PartialEq, Ord, PartialOrd)]
 pub enum Component {
+    #[display("{_0}")]
     Static(String),
+
+    #[display("{_0}")]
     Range(Range),
 }
 
-#[derive(Debug, Clone, Hash, Eq, PartialEq)]
+#[derive(Clone, Hash, Eq, PartialEq)]
 pub enum FingerprintComponent {
     Static(String),
     RangePlaceholder,
@@ -21,7 +27,7 @@ pub enum FingerprintComponent {
 
 // A type that uniquely identifies the structure of a hostlist element. Used to combine hostlist
 // elements that are identical other than their range values.
-#[derive(Debug, Clone, Hash, Eq, PartialEq)]
+#[derive(Clone, Hash, Eq, PartialEq)]
 pub struct Fingerprint {
     pub components: Vec<FingerprintComponent>,
 }
@@ -40,6 +46,18 @@ pub struct HostlistElem {
     pub components: Vec<Component>,
     latest: Option<String>,
     len: usize,
+}
+
+impl fmt::Display for HostlistElem {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        let joined = self
+            .components
+            .iter()
+            .map(std::string::ToString::to_string)
+            .collect::<String>();
+
+        f.write_str(&joined)
+    }
 }
 
 impl HostlistElem {

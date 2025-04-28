@@ -14,6 +14,13 @@ struct Cli {
 
 #[derive(Subcommand)]
 enum Commands {
+    /// Parse the hostlist and print it out again
+    Parse {
+        /// hostlists to parse
+        #[clap(required = true, num_args = 1..)]
+        hostlists: Vec<String>,
+    },
+
     /// List individual hosts in each hostlist
     List {
         /// hostlists to expand
@@ -55,6 +62,12 @@ fn main_real() -> Result<()> {
 
     // Match on the subcommand
     match cli.command {
+        Commands::Parse { hostlists } => {
+            for h in hostlists {
+                let hostlist = Hostlist::new(&h)?;
+                write_line(&hostlist.to_string());
+            }
+        }
         Commands::List { hostlists } => {
             for h in hostlists {
                 let hostlist = Hostlist::new(&h)?;

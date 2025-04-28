@@ -1,3 +1,4 @@
+use core::fmt;
 use std::collections::HashSet;
 
 use crate::error::Result;
@@ -7,6 +8,20 @@ use crate::simplerange::SimpleRange;
 pub struct Range {
     pub ranges: Vec<SimpleRange>,
     latest: Option<u32>, // The most recent value returned by next()
+}
+
+impl fmt::Display for Range {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        let joined = self
+            .ranges
+            .iter()
+            .map(std::string::ToString::to_string)
+            .collect::<Vec<_>>()
+            .join(",");
+
+        write!(f, "[{joined}]")?;
+        Ok(())
+    }
 }
 
 impl Range {

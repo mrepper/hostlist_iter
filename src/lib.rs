@@ -1,13 +1,13 @@
-use std::collections::{HashMap, HashSet};
+use std::collections::{BTreeMap, BTreeSet};
 
 use pest::Parser;
 
+mod error;
 mod hostlist;
 mod hostlistelem;
 mod range;
 mod simplerange;
 
-pub mod error;
 pub use crate::error::{Error, Result};
 pub use crate::hostlist::Hostlist;
 
@@ -16,7 +16,7 @@ use crate::hostlist::{HostlistParser, Rule};
 /// Expands a hostlist expression into a list of host names
 ///
 /// # Errors
-/// Will return `Err` if there are issues parsing the provided hostlist expression.
+/// Will return `hostlist_iter::Error` if there are issues parsing the provided hostlist expression.
 /// ```
 /// use hostlist_iter::expand_hostlist;
 ///
@@ -27,15 +27,15 @@ use crate::hostlist::{HostlistParser, Rule};
 ///   Ok(())
 /// }
 /// ```
-pub fn expand_hostlist(hostlist: &str) -> Result<Vec<String>> {
-    let hostlist = Hostlist::new(hostlist)?;
+pub fn expand_hostlist(expr: &str) -> Result<Vec<String>> {
+    let hostlist = Hostlist::new(expr)?;
     Ok(hostlist.into_iter().collect())
 }
 
 /// Collapses a list of host names into a hostlist expression
 ///
 /// # Errors
-/// Will return `Err` if any host name cannot be parsed.
+/// Will return `hostlist_iter::Error` if any host name cannot be parsed.
 /// ```
 /// use hostlist_iter::collapse_hosts;
 ///
@@ -49,7 +49,7 @@ pub fn expand_hostlist(hostlist: &str) -> Result<Vec<String>> {
 /// ```
 pub fn collapse_hosts(hosts: impl IntoIterator<Item = impl AsRef<str>>) -> Result<String> {
     let mut hostlist_elems: Vec<String> = Vec::new();
-    let mut prefix_map: HashMap<String, HashSet<u32>> = HashMap::new();
+    let mut prefix_map: BTreeMap<String, BTreeSet<u32>> = BTreeMap::new();
 
     for host in hosts {
         let host = host.as_ref();
@@ -81,12 +81,9 @@ pub fn collapse_hosts(hosts: impl IntoIterator<Item = impl AsRef<str>>) -> Resul
         }
     }
 
-    let mut sorted_prefixes: Vec<&String> = prefix_map.keys().collect();
-    sorted_prefixes.sort_unstable();
-    for prefix in sorted_prefixes {
-        let nums: Vec<u32> = prefix_map[prefix].iter().copied().collect();
-        let mut host = prefix.clone();
-        host.push_str(collapse_range(nums).as_str());
+    for (prefix, nums_set) in prefix_map {
+        let mut host = prefix;
+        host.push_str(collapse_range(&nums_set).as_str());
         hostlist_elems.push(host);
     }
 
@@ -94,22 +91,15 @@ pub fn collapse_hosts(hosts: impl IntoIterator<Item = impl AsRef<str>>) -> Resul
 }
 
 /// Convert an iterator of numbers into a range expression
-fn collapse_range<I>(nums: I) -> String
-where
-    I: IntoIterator<Item = u32>,
-{
-    let mut nums: Vec<u32> = nums.into_iter().collect();
-    nums.sort_unstable();
-    nums.dedup();
-
+fn collapse_range(nums: &BTreeSet<u32>) -> String {
     let mut collapsed = String::new();
     let mut in_range = false;
     let mut needs_brackets = false;
     let mut prev_num = 0;
-    for (i, num) in nums.into_iter().enumerate() {
+    for (i, num) in nums.iter().enumerate() {
         if i == 0 {
             collapsed += &num.to_string();
-        } else if num == prev_num + 1 {
+        } else if *num == prev_num + 1 {
             if !in_range {
                 // saw the second number in a range
                 collapsed.push('-');
@@ -127,7 +117,7 @@ where
             needs_brackets = true;
             collapsed += &num.to_string();
         }
-        prev_num = num;
+        prev_num = *num;
     }
     if in_range {
         collapsed += &prev_num.to_string();
@@ -159,7 +149,9 @@ mod tests {
         ];
 
         for (input, expected) in tests {
-            assert_eq!(collapse_range(input), expected);
+            let mut nums: BTreeSet<u32> = BTreeSet::new();
+            nums.extend(input);
+            assert_eq!(collapse_range(&nums), expected);
         }
     }
 
@@ -345,12 +337,13 @@ mod tests {
             (vec!["n1", "n2", "n3"], "n[1-3]"),
             (vec!["some.host"], "some.host"),
             (vec!["n1", "n2", "n3", "n5"], "n[1-3,5]"),
-            (vec!["n1", "n2", "n3", "n5", "n6"], "n[1-3,5-6]"),
+            (vec!["n3", "n2", "n1", "n5", "n6"], "n[1-3,5-6]"),
             (vec!["n1", "n2", "n5", "n6", "foo1"], "foo1,n[1-2,5-6]"),
             (
                 vec!["n1", "n2", "n3", "n5", "n6", "foo1"],
                 "foo1,n[1-3,5-6]",
             ),
+            (vec!["n001", "n002", "n003"], "n[1-3]"),
         ];
         for (input, expected) in tests {
             assert_eq!(expected, collapse_hosts(input)?);

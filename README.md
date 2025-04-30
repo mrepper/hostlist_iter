@@ -29,7 +29,7 @@ cargo add hostlist_iter
 
 To install an optional CLI tool `hostlist_iter`:
 ```bash
-cargo install hostlist_iter
+cargo install hostlist_iter --features cli
 ```
 
 ## Usage

@@ -9,30 +9,30 @@ pub type Result<T> = core::result::Result<T, Error>;
 #[derive(Debug, From, Display)]
 pub enum Error {
     // -- lib
-    #[display("Error: invalid range \"[{start}-{end}]\": start greater than end")]
+    #[display("invalid range \"[{start}-{end}]\": start greater than end")]
     InvalidRangeReversed { start: u32, end: u32 },
 
-    #[display("Error: integer value {_0} exceeds limits")]
+    #[display("integer value {_0} exceeds limits")]
     TooLarge(u32),
 
-    #[display("Error: hostlist is too large")]
+    #[display("hostlist is too large")]
     HostlistTooLarge,
 
-    #[display("Error: unexpected parser state while processing rule:\n{_0:?}")]
+    #[display("unexpected parser state while processing rule:\n{_0:?}")]
     UnexpectedParserState(Rule),
 
-    #[display("Error: invalid hostname: \"{_0}\"")]
+    #[display("invalid hostname: \"{_0}\"")]
     InvalidHostname(String),
 
-    #[display("Error: internal error: \"{_0}\"")]
+    #[display("internal error: \"{_0}\"")]
     Internal(String),
 
     // -- Externals
-    #[display("Error: parse error:\n{_0}")]
+    #[display("parse error:\n{_0}")]
     ParseError(Box<pest::error::Error<Rule>>),
 
     #[from]
-    #[display("Error: integer parse error: {_0}")]
+    #[display("integer parse error: {_0}")]
     ParseIntError(std::num::ParseIntError),
 }
 

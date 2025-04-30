@@ -12,10 +12,8 @@
 WHITESPACE = _{ " " | "\t" | NEWLINE }
 
 /// The primary rule for this grammar
-hostlist      = _{ SOI ~ hostlist_elem ~ ("," ~ hostlist_elem)* ~ EOI }
+hostlist      = _{ SOI ~ (hostlist_elem ~ ("," ~ hostlist_elem)*)* ~ EOI }
 hostlist_elem =  { static_elem ~ (range ~ static_elem?)* }
-// To disallow adjacent ranges:
-// hostlist_elem = { (static_elem ~ range?)+ }
 
 /// The non-range part of a hostlist (ex: "node" in "node[1-5]")
 static_elem = @{ static_char+ }
@@ -27,8 +25,9 @@ range_elem   = _{ simple_range | number }
 simple_range =  { number ~ "-" ~ number }
 number       = @{ ASCII_DIGIT+ }
 
-/* Rules for turning list of hostnames into a hostlist */
-// https://pest.rs/book/grammars/syntax.html#predicates
+/* Rules used by `collapse_hosts()` to turn a list of hostnames into a hostlist */
+
+// A hostname
 simple_hostname = _{ SOI ~ (prefix ~ numeric_suffix | numeric_suffix | prefix) ~ EOI }
 
 // Consume characters as long as they're not the start of the final suffix

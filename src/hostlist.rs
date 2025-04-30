@@ -55,9 +55,9 @@ impl Hostlist {
     ///
     /// # Errors
     /// Will return `Err` if there are issues parsing the provided expression.
-    pub fn new(input: &str) -> Result<Self> {
+    pub fn new(expr: &str) -> Result<Self> {
         let mut hostlist_elems_by_fingerprint = HashMap::new();
-        let pairs = HostlistParser::parse(Rule::hostlist, input)?;
+        let pairs = HostlistParser::parse(Rule::hostlist, expr)?;
 
         for hostlist in pairs {
             match hostlist.as_rule() {
@@ -338,6 +338,116 @@ mod tests {
         assert_eq!(hostlist.len(), 0);
         assert_eq!(hostlist.next(), None);
         assert_eq!(hostlist.len(), 0);
+
+        Ok(())
+    }
+
+    #[test]
+    fn test_hostlist_invalid() {
+        let inputs = [
+            ("[1-3]", "no prefix"),
+            ("node[1-", "unclosed bracket range"),
+            ("node]1-3[", "inverted brackets"),
+            ("node[3-1]", "reversed range"),
+            ("node[1,]", "trailing comma"),
+            ("node[,1]", "leading comma"),
+            ("node[1,,3]", "double comma"),
+            ("node[1-3", "missing closing bracket"),
+            ("node1-3]", "missing opening bracket"),
+            ("node[a-3]", "non-numeric character in range"),
+            ("node[-1-3]", "negative number in range"),
+            ("node[1.5-3]", "non-integer in range"),
+            ("node[1--3]", "double hyphen in range"),
+            ("node[[1-3]]", "nested brackets"),
+            ("node[1:2]", "using colon instead of hyphen for range"),
+        ];
+
+        for (input, description) in inputs {
+            let result = input.parse::<Hostlist>();
+            if let Ok(hostlist) = result {
+                panic!("Failure on '{input}' ({description}). Hostlist parsed to: '{hostlist}'.");
+            }
+        }
+    }
+
+    #[test]
+    fn test_hostlist_valid() -> Result<()> {
+        let inputs = [
+            ("node[1-3]", vec!["node1", "node2", "node3"]),
+            ("node[01-03]", vec!["node1", "node2", "node3"]),
+            ("node[04-06]", vec!["node4", "node5", "node6"]),
+            ("compute[1,3,5]", vec!["compute1", "compute3", "compute5"]),
+            (
+                "server[1-3,5,7-9]",
+                vec![
+                    "server1", "server2", "server3", "server5", "server7", "server8", "server9",
+                ],
+            ),
+            (
+                "host[1-3]-rack[1-2]",
+                vec![
+                    "host1-rack1",
+                    "host1-rack2",
+                    "host2-rack1",
+                    "host2-rack2",
+                    "host3-rack1",
+                    "host3-rack2",
+                ],
+            ),
+            (
+                "node[4-6,8,10-12]",
+                vec![
+                    "node4", "node5", "node6", "node8", "node10", "node11", "node12",
+                ],
+            ),
+            (
+                "prefix[1-3]suffix",
+                vec!["prefix1suffix", "prefix2suffix", "prefix3suffix"],
+            ),
+            (
+                "node[1-3],server[1-2]",
+                vec!["node1", "node2", "node3", "server1", "server2"],
+            ),
+            ("", vec![]),
+            ("singlenode", vec!["singlenode"]),
+            ("node[0-0]", vec!["node0"]),
+            ("node[42]", vec!["node42"]),
+        ];
+
+        for (input, expected) in inputs {
+            eprintln!("input: \"{input}\"");
+            let hosts = input.parse::<Hostlist>()?.collect::<Vec<_>>();
+            assert_eq!(hosts, expected);
+        }
+
+        Ok(())
+    }
+
+    #[test]
+    fn test_hostlist_display() -> Result<()> {
+        let inputs = [
+            ("node[1-3]", "node[1-3]"),
+            ("node[01-03]", "node[1-3]"),
+            ("node[04-06]", "node[4-6]"),
+            ("node[04-04]", "node[4]"),
+            ("compute[1,3,5]", "compute[1,3,5]"),
+            ("server[1-3,5,7-9]", "server[1-3,5,7-9]"),
+            ("host[1-3]-rack[1-2]", "host[1-3]-rack[1-2]"),
+            ("node[4-6,8,10-12]", "node[4-6,8,10-12]"),
+            ("prefix[1-3]suffix", "prefix[1-3]suffix"),
+            ("node[1-3],server[1-2]", "node[1-3],server[1-2]"),
+            ("", ""),
+            ("singlenode", "singlenode"),
+            ("node[0]", "node[0]"),
+            ("node[0-0]", "node[0]"),
+            ("node[42]", "node[42]"),
+        ];
+
+        for (input, expected) in inputs {
+            eprintln!("input: \"{input}\"");
+            let hostlist = input.parse::<Hostlist>()?;
+            assert_eq!(hostlist.to_string(), expected);
+        }
 
         Ok(())
     }
